@@ -9,11 +9,10 @@ import plotly.graph_objects as pgo
 import plotly.express as px
 
 # ML-Algos
-from sklearn.model_selection import train_test_split, KFold, cross_val_score
+from sklearn.model_selection import train_test_split, KFold, cross_val_score, RandomizedSearchCV, GridSearchCV
 from sklearn import model_selection, metrics
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor, AdaBoostRegressor
+from sklearn.ensemble import RandomForestRegressor
 #from xgboost import XGBRegressor
 
 # Load in Data
@@ -66,10 +65,62 @@ df['area'] = df['area'].astype(int)
 y = df['Rent']
 X = df.iloc[:, 2:]
 
+# Define ML-models and parameters to be tuned for CVgridsearch
+model_params = {
+    'ridge': {
+        'model': Ridge(),
+        'params': {
+            'alpha': [1e-15, 1e-10, 1e-8, 1e-4, 1e-3,1e-2, 1, 5, 10, 20]
+        }
+    },
+    'lasso': {
+        'model': Lasso(),
+        'params': {
+            'alpha': [1e-15, 1e-10, 1e-8, 1e-5,1e-4, 1e-3,1e-2, 1, 5, 10]
+        }
+    },
+    'rfregressor': {
+        'model': RandomForestRegressor(random_state=0),
+        'params': {
+            'n_estimators': [50, 100, 200],
+            'min_samples_split': [1, 2, 3],
+            'max_depth': [1, 2, 3, 4, 5],
+            'min_samples_leaf': [1, 2, 3]
+        }
+    }
+}
+
+scores = []
+
+for model_name, mp in model_params.items():
+    clf = GridSearchCV(mp['model'], mp['params'], cv = 5, return_train_score=False)
+    clf.fit(X, y)
+
+    scores.append({
+        'model': model_name,
+        'best_score': clf.best_score_,
+        'best_params': clf.best_params_
+    })
+scores
+df_scores = pd.DataFrame(scores, columns=['model', 'best_score', 'bestparams'])
+df_scores
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Train-test-split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 0)
 
-# Set up function which uses an algo as input and returns the accuracy score and AUROC for the input data
+# Set up function which uses an algo as input and returns the accuracy score for train test split
 def alg_fit(alg, X_train, y_train):
     
     # Model selection
@@ -84,11 +135,23 @@ def alg_fit(alg, X_train, y_train):
 
     #return y_pred, acc_rmse
 
+# Set up function which uses an algo as input and returns the accuracy score for cross validation
+def alg_fit_cv(alg, X, y):
+    
+    # Cross validation
+    cv = KFold(shuffle = True, random_state = 0, n_splits = 5)
+    
+    # Accuracy
+    scores = cross_val_score(alg, X, y, cv = cv, scoring = 'neg_mean_squared_error')
+    acc_rmse_cv = round(np.sqrt(scores.mean()*-1), 4)
+
+    return acc_rmse_cv
+
 # ML-algos
 linreg = LinearRegression()
 #ridge = Ridge(alpha = a)
 #lasso = Lasso(alpha = b)
-xgb = XGBRegressor(n_estimators = 300,
+#xgb = XGBRegressor(n_estimators = 300,
                    max_depth = 2,
                    min_child_weight = 0,
                    gamma = 8,
@@ -102,7 +165,7 @@ xgb = XGBRegressor(n_estimators = 300,
                    reg_alpha = 0.006)
 
 # Alphas for ridge and lasso
-alphas = np.linspace(0, 0.2, num=100)
+alphas = list(np.linspace(0, 2, num=101))
 alphas
 
 alg_fit(linreg, X_train, y_train)
