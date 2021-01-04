@@ -66,13 +66,49 @@ y = df['Rent']
 X = df.iloc[:, 2:]
 
 # Define ML-models and parameters to be tuned for CVgridsearch
+df_scores = pd.DataFrame(scores, columns=['model', 'best_score', 'bestparams'])
+df_scores
+
+scores = []
+def gridsearchcv(alg, parameters, X, y):
+    clf = GridSearchCV(alg, params, cv=5, scoring="neg_root_mean_squared_error", return_train_score=False)
+    clf.fit(X,y)
+    scores.append({
+        'model': alg,
+        'best_score': clf.best_score_*-1,
+        'best_params': clf.best_params_
+    })
+
+clfr = Ridge()
+params = {'alpha': [1e-15, 1e-10, 1e-8, 1e-4, 1e-3,1e-2, 1, 5, 10, 20]}
+
+gridsearchcv(ridge2, params, X, y)
+
+
+clf = GridSearchCV(ridge, params, cv = 5, scoring="neg_root_mean_squared_error", return_train_score=False)
+clf.fit(X, y)
+clf.best_score_
+clf.best_params_
+
+
+
+
+
+
+
+
+
+for model_name, mp in model_params.items():
+    clf = GridSearchCV(mp['model'], mp['params'], cv = 5, return_train_score=False)
+    clf.fit(X, y)
+
+    scores.append({
+        'model': model_name,
+        'best_score': clf.best_score_,
+        'best_params': clf.best_params_
+    })
+
 model_params = {
-    'ridge': {
-        'model': Ridge(),
-        'params': {
-            'alpha': [1e-15, 1e-10, 1e-8, 1e-4, 1e-3,1e-2, 1, 5, 10, 20]
-        }
-    },
     'lasso': {
         'model': Lasso(),
         'params': {
@@ -89,33 +125,7 @@ model_params = {
         }
     }
 }
-
-scores = []
-
-for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], cv = 5, return_train_score=False)
-    clf.fit(X, y)
-
-    scores.append({
-        'model': model_name,
-        'best_score': clf.best_score_,
-        'best_params': clf.best_params_
-    })
-scores
-df_scores = pd.DataFrame(scores, columns=['model', 'best_score', 'bestparams'])
-df_scores
-
-
-
-
-
-
-
-
-
-
-
-
+model_params.items()
 
 # Train-test-split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 0)
