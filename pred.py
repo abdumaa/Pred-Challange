@@ -6,11 +6,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.graph_objects as pgo
-import plotly.express as px
 
 # ML-Algos
 from sklearn.model_selection import train_test_split, KFold, cross_val_score, RandomizedSearchCV, GridSearchCV
-from sklearn import model_selection, metrics
+from sklearn import model_selection, metrics, preprocessing
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.ensemble import RandomForestRegressor
 #from xgboost import XGBRegressor
@@ -36,6 +35,8 @@ def Show_dist(feat):
 
 Show_dist('dum_privateoffer')
 
+
+
 # Correlation matrix using heatmap
 sns.set(style = "white")
 cor_matrix = df.loc[:, 'Rent':].corr()
@@ -52,6 +53,8 @@ sns.heatmap(cor_matrix, mask = mask, cmap = cmap, center = 0,
             square = True, linewidths = .5, cbar_kws = {"shrink": .5})
 plt.show()
 
+
+
 # Feature Engineering
 # Split up postcode in regions (first 2 digits) and areas (last 3 digits)
 v = df.postcode.astype(str)
@@ -65,32 +68,30 @@ df['area'] = df['area'].astype(int)
 y = df['Rent']
 X = df.iloc[:, 2:]
 
-# Define ML-models and parameters to be tuned for CVgridsearch
-df_scores = pd.DataFrame(scores, columns=['model', 'best_score', 'bestparams'])
-df_scores
+# Standardize X for Lasso and Ridge
+scaler = preprocessing.StandardScaler()
+X_scaled = pd.DataFrame(scaler.fit_transform(X), columns=X.columns, index=X.index)
+X_scaled
 
-scores = []
-def gridsearchcv(alg, parameters, X, y):
-    clf = GridSearchCV(alg, params, cv=5, scoring="neg_root_mean_squared_error", return_train_score=False)
-    clf.fit(X,y)
-    scores.append({
-        'model': alg,
-        'best_score': clf.best_score_*-1,
-        'best_params': clf.best_params_
-    })
+# ML Models
+# Ridge regressor and parameters to be tuned for CVgridsearch using standardized X
+ridge = Ridge()
+params = {'alpha': [0, 1e-30, 1e-20, 1e-15, 1e-10, 1e-8, 1e-4, 1e-3,1e-2, 1, 5, 10, 20, 50, 100]}
+clf = GridSearchCV(ridge, params, scoring="neg_root_mean_squared_error")
+grid_search = clf.fit(X,y)
+print(grid_search.best_score_*-1)
+print(grid_search.best_params_)
 
-clfr = Ridge()
-params = {'alpha': [1e-15, 1e-10, 1e-8, 1e-4, 1e-3,1e-2, 1, 5, 10, 20]}
-
-gridsearchcv(ridge2, params, X, y)
-
-
-clf = GridSearchCV(ridge, params, cv = 5, scoring="neg_root_mean_squared_error", return_train_score=False)
-clf.fit(X, y)
-clf.best_score_
-clf.best_params_
+# Lasso regressor and parameters to be tuned for CVgridsearch using standardized X
+lasso = Lasso()
+params = {'alpha': [0, 1e-30, 1e-20, 1e-15, 1e-10, 1e-8, 1e-4, 1e-3,1e-2, 1, 5, 10, 20, 50, 100]}
+clf = GridSearchCV(lasso, params, scoring="neg_root_mean_squared_error")
+grid_search = clf.fit(X,y)
+print(grid_search.best_score_*-1)
+print(grid_search.best_params_)
 
 
+#gridsearchcv(ridge2, params, X, y)
 
 
 
@@ -98,23 +99,20 @@ clf.best_params_
 
 
 
-for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], cv = 5, return_train_score=False)
-    clf.fit(X, y)
 
-    scores.append({
-        'model': model_name,
-        'best_score': clf.best_score_,
-        'best_params': clf.best_params_
-    })
+
+#for model_name, mp in model_params.items():
+#    clf = GridSearchCV(mp['model'], mp['params'], cv = 5, return_train_score=False)
+#    clf.fit(X, y)
+
+#    scores.append({
+#        'model': model_name,
+#        'best_score': clf.best_score_,
+#        'best_params': clf.best_params_
+#    })
 
 model_params = {
-    'lasso': {
-        'model': Lasso(),
-        'params': {
-            'alpha': [1e-15, 1e-10, 1e-8, 1e-5,1e-4, 1e-3,1e-2, 1, 5, 10]
-        }
-    },
+
     'rfregressor': {
         'model': RandomForestRegressor(random_state=0),
         'params': {
@@ -145,37 +143,22 @@ def alg_fit(alg, X_train, y_train):
 
     #return y_pred, acc_rmse
 
-# Set up function which uses an algo as input and returns the accuracy score for cross validation
-def alg_fit_cv(alg, X, y):
-    
-    # Cross validation
-    cv = KFold(shuffle = True, random_state = 0, n_splits = 5)
-    
-    # Accuracy
-    scores = cross_val_score(alg, X, y, cv = cv, scoring = 'neg_mean_squared_error')
-    acc_rmse_cv = round(np.sqrt(scores.mean()*-1), 4)
-
-    return acc_rmse_cv
 
 # ML-algos
 linreg = LinearRegression()
 #ridge = Ridge(alpha = a)
 #lasso = Lasso(alpha = b)
 #xgb = XGBRegressor(n_estimators = 300,
-                   max_depth = 2,
-                   min_child_weight = 0,
-                   gamma = 8,
-                   subsample = 0.6,
-                   colsample_bytree = 0.9,
-                   objective = 'reg:squarederror',
-                   nthread = -1,
-                   scale_pos_weight = 1,
-                   seed = 27,
-                   learning_rate = 0.02,
-                   reg_alpha = 0.006)
+                  # max_depth = 2,
+                  # min_child_weight = 0,
+                  # gamma = 8,
+                  # subsample = 0.6,
+                  # colsample_bytree = 0.9,
+                  # objective = 'reg:squarederror',
+                  # nthread = -1,
+                  # scale_pos_weight = 1,
+                  # seed = 27,
+                  # learning_rate = 0.02,
+                  # reg_alpha = 0.006)
 
-# Alphas for ridge and lasso
-alphas = list(np.linspace(0, 2, num=101))
-alphas
 
-alg_fit(linreg, X_train, y_train)
