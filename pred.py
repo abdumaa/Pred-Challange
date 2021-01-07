@@ -5,14 +5,13 @@ import numpy as np
 # Visualization
 import matplotlib.pyplot as plt
 import seaborn as sns
-import plotly.graph_objects as pgo
 
 # ML-Algos
 from sklearn.model_selection import train_test_split, KFold, cross_val_score, RandomizedSearchCV, GridSearchCV
 from sklearn import model_selection, metrics, preprocessing
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.ensemble import RandomForestRegressor
-#from xgboost import XGBRegressor
+from xgboost import XGBRegressor
 
 # Load in Data
 df = pd.read_csv('./pred-challenge/Lab5_PredictionChallenge_training.csv')
@@ -89,7 +88,7 @@ grid_search = clf.fit(X_scaled,y)
 print(grid_search.best_score_*-1)
 print(grid_search.best_params_)
 
-# Lasso regressor and parameters to be tuned for CVgridsearch using normal X
+# RandomForestregressor and parameters to be tuned for CVgridsearch using normal X
 rf = RandomForestRegressor(random_state=0)
 params = {'bootstrap': [True, False],
           'n_estimators': [200, 400, 600, 800, 1000],
@@ -99,75 +98,47 @@ params = {'bootstrap': [True, False],
           'min_samples_leaf': [1, 2, 4]}
 clf = RandomizedSearchCV(rf, params, scoring="neg_root_mean_squared_error", random_state=42, n_jobs = -1, cv=3)
 grid_search = clf.fit(X,y)
-print(grid_search.best_score_*-1)
-print(grid_search.best_params_)
+print(grid_search.best_score_*-1) #130.47057058639732
+print(grid_search.best_params_) #{'n_estimators': 800, 'min_samples_split': 2, 'min_samples_leaf': 1, 'max_features': 'sqrt', 'max_depth': 80, 'bootstrap': False}
+
+# XGBoostregressor and parameters to be tuned for CVgridsearch using normal X
+xgb = XGBRegressor()
+params = {'nthread':[4], 
+          'learning_rate': [.03, 0.05, .07], 
+          'max_depth': [5, 6, 7],
+          'min_child_weight': [4],
+          'subsample': [0.7],
+          'colsample_bytree': [0.7],
+          'n_estimators': [500, 600, 700]}
+clf = GridSearchCV(xgb, params, scoring="neg_root_mean_squared_error", verbose=True, n_jobs = 5, cv=3)
+grid_search = clf.fit(X,y)
+print(grid_search.best_score_*-1) #120.10158838463475
+print(grid_search.best_params_) #{'colsample_bytree': 0.7, 'learning_rate': 0.07, 'max_depth': 6, 'min_child_weight': 4, 'n_estimators': 600, 'nthread': 4, 'silent': 1, 'subsample': 0.7}
 
 
-grid_search
 
-
-
-
-
-
-#for model_name, mp in model_params.items():
-#    clf = GridSearchCV(mp['model'], mp['params'], cv = 5, return_train_score=False)
-#    clf.fit(X, y)
-
-#    scores.append({
-#        'model': model_name,
-#        'best_score': clf.best_score_,
-#        'best_params': clf.best_params_
-#    })
-
-model_params = {
-
-    'rfregressor': {
-        'model': RandomForestRegressor(random_state=0),
-        'params': {
-            'n_estimators': [50, 100, 200, 500, 1000],
-            'min_samples_split': [1, 2, 3],
-            'max_depth': [1, 2, 3, 4, 5],
-            'min_samples_leaf': [1, 2, 3]
-        }
-    }
-}
-model_params.items()
-
+# Use final model for final evaluations
 # Train-test-split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 0)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.01, random_state = 0)
 
-# Set up function which uses an algo as input and returns the accuracy score for train test split
-def alg_fit(alg, X_train, y_train):
-    
-    # Model selection
-    mod = alg.fit(X_train, y_train)
-    
-    # Prediction
-    y_pred = mod.predict(X_test)
-    
-    # Accuracy Score
-    acc_rmse = round(np.sqrt(metrics.mean_squared_error(y_test, y_pred)), 4)
-    print("Accuracy Score: ", acc_rmse)
+# Use final model on 5 fold cross validation
+xgb_final = XGBRegressor(n_estimators=600,
+                         colsample_bytree=0.7,
+                         learning_rate=0.07,
+                         max_depth=6,
+                         min_child_weight=4,
+                         nthread=4,
+                         subsample=0.7)
+cv = KFold(shuffle = True, random_state = 0, n_splits = 5)
+scores = cross_val_score(xgb_final, X_train, y_train, cv = cv, scoring = "neg_root_mean_squared_error")
+print(scores.mean()*-1) #116.02685025920496
 
-    #return y_pred, acc_rmse
+# Test it on 1% unseen data
+mod = xgb_final.fit(X_train, y_train)
+y_pred = mod.predict(X_test)
+acc_rmse = round(np.sqrt(metrics.mean_squared_error(y_test, y_pred)), 4)
+print("Accuracy Score: ", acc_rmse) #114.8204
 
 
-# ML-algos
-linreg = LinearRegression()
-#ridge = Ridge(alpha = a)
-#lasso = Lasso(alpha = b)
-#xgb = XGBRegressor(n_estimators = 300,
-                  # max_depth = 2,
-                  # min_child_weight = 0,
-                  # gamma = 8,
-                  # subsample = 0.6,
-                  # colsample_bytree = 0.9,
-                  # objective = 'reg:squarederror',
-                  # nthread = -1,
-                  # scale_pos_weight = 1,
-                  # seed = 27,
-                  # learning_rate = 0.02,
-                  # reg_alpha = 0.006)
 
 
