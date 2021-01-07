@@ -71,30 +71,39 @@ X = df.iloc[:, 2:]
 # Standardize X for Lasso and Ridge
 scaler = preprocessing.StandardScaler()
 X_scaled = pd.DataFrame(scaler.fit_transform(X), columns=X.columns, index=X.index)
-X_scaled
 
 # ML Models
 # Ridge regressor and parameters to be tuned for CVgridsearch using standardized X
 ridge = Ridge()
 params = {'alpha': [0, 1e-30, 1e-20, 1e-15, 1e-10, 1e-8, 1e-4, 1e-3,1e-2, 1, 5, 10, 20, 50, 100]}
 clf = GridSearchCV(ridge, params, scoring="neg_root_mean_squared_error")
-grid_search = clf.fit(X,y)
+grid_search = clf.fit(X_scaled,y)
 print(grid_search.best_score_*-1)
 print(grid_search.best_params_)
 
 # Lasso regressor and parameters to be tuned for CVgridsearch using standardized X
 lasso = Lasso()
-params = {'alpha': [0, 1e-30, 1e-20, 1e-15, 1e-10, 1e-8, 1e-4, 1e-3,1e-2, 1, 5, 10, 20, 50, 100]}
+params = {'alpha': [0, 1e-30, 1e-20, 1e-15, 1e-10, 1e-8, 1e-4, 1e-3, 1e-2, 1, 5, 10, 20, 50, 100]}
 clf = GridSearchCV(lasso, params, scoring="neg_root_mean_squared_error")
+grid_search = clf.fit(X_scaled,y)
+print(grid_search.best_score_*-1)
+print(grid_search.best_params_)
+
+# Lasso regressor and parameters to be tuned for CVgridsearch using normal X
+rf = RandomForestRegressor(random_state=0)
+params = {'bootstrap': [True, False],
+          'n_estimators': [200, 400, 600, 800, 1000],
+          'max_features': ['auto', 'sqrt'],
+          'min_samples_split': [2, 5, 10],
+          'max_depth': [70, 80, 90, 100, None],
+          'min_samples_leaf': [1, 2, 4]}
+clf = RandomizedSearchCV(rf, params, scoring="neg_root_mean_squared_error", random_state=42, n_jobs = -1, cv=3)
 grid_search = clf.fit(X,y)
 print(grid_search.best_score_*-1)
 print(grid_search.best_params_)
 
 
-#gridsearchcv(ridge2, params, X, y)
-
-
-
+grid_search
 
 
 
@@ -116,7 +125,7 @@ model_params = {
     'rfregressor': {
         'model': RandomForestRegressor(random_state=0),
         'params': {
-            'n_estimators': [50, 100, 200],
+            'n_estimators': [50, 100, 200, 500, 1000],
             'min_samples_split': [1, 2, 3],
             'max_depth': [1, 2, 3, 4, 5],
             'min_samples_leaf': [1, 2, 3]
