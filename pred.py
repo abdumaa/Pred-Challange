@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split, KFold, cross_val_score, Ra
 from sklearn import model_selection, metrics, preprocessing
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.ensemble import RandomForestRegressor
-from xgboost import XGBRegressor
+from xgboost import XGBRegressor, plot_importance
 
 # Load in Data
 df = pd.read_csv('./pred-challenge/Lab5_PredictionChallenge_training.csv')
@@ -103,17 +103,16 @@ print(grid_search.best_params_) #{'n_estimators': 800, 'min_samples_split': 2, '
 
 # XGBoostregressor and parameters to be tuned for CVgridsearch using normal X
 xgb = XGBRegressor()
-params = {'nthread':[4], 
-          'learning_rate': [.03, 0.05, .07], 
+params = {'learning_rate': [.03, 0.05, .07, .09], 
           'max_depth': [5, 6, 7],
-          'min_child_weight': [4],
-          'subsample': [0.7],
+          'min_child_weight': [3],
+          'subsample': [0.69, 0.7, 0.71],
           'colsample_bytree': [0.7],
           'n_estimators': [500, 600, 700]}
 clf = GridSearchCV(xgb, params, scoring="neg_root_mean_squared_error", verbose=True, n_jobs = 5, cv=3)
 grid_search = clf.fit(X,y)
-print(grid_search.best_score_*-1) #120.10158838463475
-print(grid_search.best_params_) #{'colsample_bytree': 0.7, 'learning_rate': 0.07, 'max_depth': 6, 'min_child_weight': 4, 'n_estimators': 600, 'nthread': 4, 'silent': 1, 'subsample': 0.7}
+print(grid_search.best_score_*-1) #118.10158838463475
+print(grid_search.best_params_) #{'colsample_bytree': 0.7, 'learning_rate': 0.09, 'max_depth': 6, 'min_child_weight': 3, 'n_estimators': 600, 'silent': 1, 'subsample': 0.71}
 
 
 
@@ -124,14 +123,13 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.01, rand
 # Use final model on 5 fold cross validation
 xgb_final = XGBRegressor(n_estimators=600,
                          colsample_bytree=0.7,
-                         learning_rate=0.07,
+                         learning_rate=0.09,
                          max_depth=6,
-                         min_child_weight=4,
-                         nthread=4,
-                         subsample=0.7)
+                         min_child_weight=3,
+                         subsample=0.71)
 cv = KFold(shuffle = True, random_state = 0, n_splits = 5)
 scores = cross_val_score(xgb_final, X_train, y_train, cv = cv, scoring = "neg_root_mean_squared_error")
-print(scores.mean()*-1) #116.02685025920496
+print(scores.mean()*-1) #115.87528571877014
 
 # Test it on 1% unseen data
 mod = xgb_final.fit(X_train, y_train)
@@ -139,6 +137,9 @@ y_pred = mod.predict(X_test)
 acc_rmse = round(np.sqrt(metrics.mean_squared_error(y_test, y_pred)), 4)
 print("Accuracy Score: ", acc_rmse) #114.8204
 
+# feature importance
+plot_importance(mod)
+plt.show()
 
 
 
